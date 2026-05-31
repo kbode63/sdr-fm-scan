@@ -46,11 +46,11 @@ full annotated 3-panel report.
 ```bash
 # macOS
 brew install librtlsdr
-pip3 install matplotlib numpy pandas
+pip3 install matplotlib numpy pandas streamlit
 
 # Debian / Ubuntu
 sudo apt install rtl-sdr
-pip3 install matplotlib numpy pandas
+pip3 install matplotlib numpy pandas streamlit
 ```
 
 Verify your dongle is recognised:
@@ -199,6 +199,59 @@ Peaks are classified by SNR above the median noise floor:
 
 ---
 
+### `gui.py` — Streamlit web interface
+
+A browser-based GUI that wraps `scan.sh` and `analyze.py` with live output
+streaming, interactive controls, and inline chart display.
+
+#### Launch
+
+```bash
+cd ~/sdr-fm-scan
+streamlit run scripts/gui.py
+# Opens automatically at http://localhost:8501
+```
+
+#### Sidebar controls
+
+| Control | Type | Description |
+|---------|------|-------------|
+| Frequency source | Radio | Switch between **Band preset** and **Custom range** |
+| Band | Dropdown | All 7 presets — Marine VHF pre-selected |
+| Low / High freq | Text | Custom range inputs when in Custom mode |
+| Override step | Text | Optional — leave blank to use the preset default |
+| Duration | Slider | 5–300 s |
+| Gain | Select-slider | All valid R820T gain steps (0–49.6 dB) |
+| SNR threshold | Slider | 1–20 dB above noise floor |
+| ▶ Start Scan | Button | Disabled while a scan is running |
+
+#### Results panel
+
+After a scan completes (or on first launch, the most recent scan is loaded
+automatically from `charts/`):
+
+- **Metadata strip** — frequency range, duration, noise floor, signal count, time (UTC)
+- **Chart tabs** — Heatmap · Spectrum · Report (full-res PNGs from `analyze.py`)
+- **Tier badges** — 🔴 Strong · 🟠 Medium · 🟢 Weak · 🔵 Marginal counts
+- **Signal table** — freq, mean/peak power, SNR, tier, stability for every detected peak
+- **Download buttons** — JSON summary and report PNG
+
+#### Live output
+
+While scanning, the last 30 lines of `scan.sh` stdout update in real time inside
+a scrolling code block, so you can monitor `rtl_power` progress and `analyze.py`
+output without leaving the browser.
+
+#### Notes
+
+- The GUI requires the RTL-SDR dongle to be connected for scanning; it will
+  display an error with exit code if the device is not found.
+- Streamlit 1.28+ is required (`pip3 install streamlit` installs the latest).
+- To run on a remote host and access via a local browser, add
+  `--server.address 0.0.0.0` to the launch command.
+
+---
+
 ## CI / GitHub Actions
 
 Three workflows live in `.github/workflows/`:
@@ -303,8 +356,9 @@ sdr-fm-scan/
 │   └── final_report_chart.png  # Full 3-panel report (3 dB threshold, 29 signals)
 ├── scripts/
 │   ├── analyze.py              # Standalone analysis CLI (peak detection + all charts + JSON)
+│   ├── gui.py                  # Streamlit web interface
 │   ├── rtl_heatmap.py          # Heatmap generator
-│   └── scan.sh                 # End-to-end scan + heatmap runner
+│   └── scan.sh                 # End-to-end scan + band-preset runner
 ├── ruff.toml                   # Linter / formatter configuration
 └── README.md
 ```
