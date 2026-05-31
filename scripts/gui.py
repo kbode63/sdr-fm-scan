@@ -275,7 +275,7 @@ def render_results(json_path: Path, charts: dict):
         tabs = st.tabs([n.capitalize() for n in charts])
         for tab, (_name, path) in zip(tabs, charts.items()):
             with tab:
-                st.image(str(path), use_container_width=True)
+                st.image(str(path), width="stretch")
         st.divider()
 
     # ── Tier summary badges
