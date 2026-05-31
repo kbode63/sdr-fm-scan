@@ -92,9 +92,9 @@ scripts/scan.sh [--band BAND] [--freq LOW:HIGH] [--step STEP]
 |--------|-------|-------------|-------------|
 | `fm` | 87.5–108 MHz | 125 kHz | FM broadcast stations |
 | `airband` | 118–137 MHz | 25 kHz | Aviation voice (AM) |
-| `2m` | 144–148 MHz | 12.5 kHz | 2 m amateur radio |
-| `marine` | 156–174 MHz | 25 kHz | Marine VHF (DSC, distress, working channels) |
 | `weather` | 162.4–162.55 MHz | 2.5 kHz | NOAA Weather Radio (US) |
+| `marine` | 156–174 MHz | 25 kHz | Marine VHF (DSC, distress, working channels) |
+| `2m` | 144–148 MHz | 12.5 kHz | 2 m amateur radio |
 | `70cm` | 430–440 MHz | 12.5 kHz | 70 cm amateur radio |
 | `ism433` | 433.05–434.79 MHz | 5 kHz | ISM band / LoRa devices |
 
