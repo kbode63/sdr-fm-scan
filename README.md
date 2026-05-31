@@ -1,7 +1,8 @@
-# SDR FM Frequency Scan
+# SDR Frequency Scanner
 
-RTL-SDR passive scan of the 85–110 MHz FM broadcast band, with automated
-heatmap and spectrum-peak analysis.
+RTL-SDR passive spectrum scanner with automated peak detection, heatmap
+generation, and multi-band preset support. Ships with named presets for FM
+broadcast, marine VHF, aviation, amateur, NOAA weather, and ISM bands.
 
 ## Hardware
 
@@ -37,6 +38,166 @@ heatmap and spectrum-peak analysis.
 
 See [`charts/final_report_chart.png`](charts/final_report_chart.png) for the
 full annotated 3-panel report.
+
+## Usage
+
+### Installation
+
+```bash
+# macOS
+brew install librtlsdr
+pip3 install matplotlib numpy pandas
+
+# Debian / Ubuntu
+sudo apt install rtl-sdr
+pip3 install matplotlib numpy pandas
+```
+
+Verify your dongle is recognised:
+
+```bash
+rtl_test -t
+# Expected: "Found 1 device(s)"
+```
+
+---
+
+### `scan.sh` — capture and analyse
+
+`scripts/scan.sh` runs `rtl_power`, then pipes the output straight into
+`analyze.py` to produce charts and a JSON summary in one step.
+
+#### Synopsis
+
+```
+scripts/scan.sh [--band BAND] [--freq LOW:HIGH] [--step STEP]
+                [--duration SECS] [--gain DB] [--threshold DB]
+```
+
+#### Options
+
+| Flag | Short | Default | Description |
+|------|-------|---------|-------------|
+| `--band` | `-b` | — | Named band preset (see table below). Overrides `--freq`. |
+| `--freq` | `-f` | — | Custom range as `LOW:HIGH`, e.g. `156M:174M`. |
+| `--step` | `-s` | preset default | Frequency bin size, e.g. `25k`. Overrides the preset default. |
+| `--duration` | `-d` | `60` | Scan duration in seconds. |
+| `--gain` | `-g` | `49.6` | Tuner gain in dB (0–49.6). |
+| `--threshold` | `-t` | `3.0` | Minimum SNR in dB above noise floor for peak detection. |
+| `--help` | `-h` | — | Print usage and exit. |
+
+#### Band presets
+
+| Preset | Range | Default step | Typical use |
+|--------|-------|-------------|-------------|
+| `fm` | 87.5–108 MHz | 125 kHz | FM broadcast stations |
+| `airband` | 118–137 MHz | 25 kHz | Aviation voice (AM) |
+| `2m` | 144–148 MHz | 12.5 kHz | 2 m amateur radio |
+| `marine` | 156–174 MHz | 25 kHz | Marine VHF (DSC, distress, working channels) |
+| `weather` | 162.4–162.55 MHz | 2.5 kHz | NOAA Weather Radio (US) |
+| `70cm` | 430–440 MHz | 12.5 kHz | 70 cm amateur radio |
+| `ism433` | 433.05–434.79 MHz | 5 kHz | ISM band / LoRa devices |
+
+#### Examples
+
+```bash
+chmod +x scripts/scan.sh
+
+# Scan by preset
+./scripts/scan.sh --band fm
+./scripts/scan.sh --band marine
+./scripts/scan.sh --band airband
+
+# Longer scan with a lower detection threshold
+./scripts/scan.sh --band marine --duration 120 --threshold 6
+
+# Override the step size for higher resolution
+./scripts/scan.sh --band fm --step 50k
+
+# Fully custom range
+./scripts/scan.sh --freq 156M:174M --step 25k --duration 60
+
+# Show all options
+./scripts/scan.sh --help
+```
+
+#### Output files
+
+All outputs are written relative to the repo root:
+
+```
+data/scan_<band>_<timestamp>.csv                      raw rtl_power data
+charts/<band>_scan_<band>_<timestamp>_heatmap.png     time/frequency waterfall
+charts/<band>_scan_<band>_<timestamp>_spectrum.png    annotated spectrum + SNR bars
+charts/<band>_scan_<band>_<timestamp>_report.png      full 3-panel report
+charts/<band>_scan_<band>_<timestamp>_summary.json    machine-readable signal list
+```
+
+Timestamps are UTC in `YYYYMMDDTHHMMSSz` format.
+Raw CSVs are excluded from git by `.gitignore`; charts and JSON are committed.
+
+---
+
+### `analyze.py` — analyse an existing CSV
+
+Use this to (re-)generate charts from any scan CSV without running the dongle.
+
+#### Synopsis
+
+```
+scripts/analyze.py CSV [--outdir DIR] [--threshold DB]
+                       [--prefix STR] [--json-out PATH]
+```
+
+#### Options
+
+| Flag | Default | Description |
+|------|---------|-------------|
+| `CSV` | *(required)* | Path to an `rtl_power` output CSV. |
+| `--outdir` | `charts/` | Directory to write chart and JSON output into. |
+| `--threshold` | `3.0` | Minimum SNR in dB above noise floor for peak detection. |
+| `--prefix` | *(none)* | String prepended to all output filenames. |
+| `--json-out` | `<outdir>/<stem>_summary.json` | Override the JSON summary path. |
+
+#### Examples
+
+```bash
+# Regenerate all charts from the reference scan
+python3 scripts/analyze.py data/output.csv
+
+# Stricter threshold — only signals 10 dB above noise
+python3 scripts/analyze.py data/output.csv --threshold 10
+
+# Write to a custom output directory
+python3 scripts/analyze.py data/output.csv --outdir /tmp/charts
+
+# Export JSON summary to a specific path
+python3 scripts/analyze.py data/output.csv --json-out results/summary.json
+```
+
+#### Output
+
+For an input file `data/output.csv`, the following are written to `--outdir`:
+
+| File | Description |
+|------|-------------|
+| `output_heatmap.png` | Time × frequency waterfall (inferno colour map) |
+| `output_spectrum.png` | Mean spectrum with annotated peaks + SNR bar chart |
+| `output_report.png` | Full 3-panel report (waterfall + spectrum + SNR) |
+| `output_summary.json` | JSON with scan metadata and per-signal metrics |
+
+#### Signal tiers
+
+Peaks are classified by SNR above the median noise floor:
+
+| Tier | SNR | Colour |
+|------|-----|--------|
+| STRONG | > 20 dB | Red |
+| MEDIUM | 14–20 dB | Orange |
+| WEAK | 6–14 dB | Green |
+| MARGINAL | 3–6 dB | Blue |
+
+---
 
 ## CI / GitHub Actions
 
@@ -147,47 +308,6 @@ sdr-fm-scan/
 ├── ruff.toml                   # Linter / formatter configuration
 └── README.md
 ```
-
-## Quick start
-
-### Dependencies
-
-```bash
-brew install librtlsdr
-pip3 install matplotlib numpy pandas
-```
-
-### Run a new scan
-
-```bash
-chmod +x scripts/scan.sh
-
-# Named band presets
-./scripts/scan.sh --band fm          # FM broadcast  87.5–108 MHz
-./scripts/scan.sh --band marine      # Marine VHF    156–174 MHz
-./scripts/scan.sh --band airband     # Aviation VHF  118–137 MHz
-./scripts/scan.sh --band weather     # NOAA weather  162.4–162.55 MHz
-./scripts/scan.sh --band 2m          # 2m amateur    144–148 MHz
-./scripts/scan.sh --band 70cm        # 70cm amateur  430–440 MHz
-./scripts/scan.sh --band ism433      # ISM/LoRa 433  433–434.79 MHz
-
-# Custom range
-./scripts/scan.sh --freq 156M:174M --step 25k
-
-# Override duration or threshold for any preset
-./scripts/scan.sh --band marine --duration 120 --threshold 6
-```
-
-Run `./scripts/scan.sh --help` for the full option list.
-
-### Full analysis from an existing CSV
-
-```bash
-python3 scripts/analyze.py data/output.csv --outdir charts/
-```
-
-Outputs three charts (`_heatmap.png`, `_spectrum.png`, `_report.png`) and a
-`_summary.json` into the specified directory.
 
 ## Detected signals
 
