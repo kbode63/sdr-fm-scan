@@ -12,6 +12,7 @@ import json
 import os
 import subprocess
 import sys
+import time
 from pathlib import Path
 
 import streamlit as st
@@ -111,6 +112,38 @@ GAIN_VALUES = [
 
 TIER_EMOJI = {"STRONG": "🔴", "MEDIUM": "🟠", "WEAK": "🟢", "MARGINAL": "🔵"}
 
+# ── Voice / data classification by frequency range ────────────────────────────
+# Returns (type_label, service_hint)
+_FREQ_CLASSES = [
+    # (low_mhz, high_mhz, type, service)
+    (87.5, 108.0, "🎙 Voice/Music", "FM Broadcast"),
+    (108.0, 118.0, "📡 Data", "Aeronautical nav (VOR/ILS)"),
+    (118.0, 137.0, "🎙 Voice (AM)", "Aviation"),
+    (137.0, 138.0, "📡 Data", "Weather satellites"),
+    (144.0, 148.0, "🎙/📡 Mixed", "2m Amateur"),
+    (156.525, 156.525, "📡 Data", "DSC Channel 70"),
+    (156.0, 174.0, "🎙 Voice", "Marine VHF"),
+    (162.400, 162.550, "🎙 Voice", "NOAA Weather Radio"),
+    (430.0, 440.0, "🎙/📡 Mixed", "70cm Amateur"),
+    (433.050, 434.790, "📡 Data", "ISM / LoRa"),
+    (862.0, 870.0, "📡 Data", "LoRa 868"),
+    (902.0, 928.0, "📡 Data", "ISM 915"),
+]
+
+
+def classify_signal(freq_mhz: float) -> tuple[str, str]:
+    """Return (type_label, service_hint) for a frequency in MHz."""
+    best = ("❓ Unknown", "")
+    best_width = float("inf")  # prefer narrower (more specific) matching range
+    for low, high, label, service in _FREQ_CLASSES:
+        if low <= freq_mhz <= high:
+            width = high - low
+            if width < best_width:
+                best = (label, service)
+                best_width = width
+    return best
+
+
 # ── Page config ───────────────────────────────────────────────────────────────
 st.set_page_config(
     page_title="RTL-SDR Scanner",
@@ -163,13 +196,21 @@ with st.sidebar:
         c1, c2 = st.columns(2)
         freq_low = c1.text_input("Low freq", value="156M")
         freq_high = c2.text_input("High freq", value="174M")
-        step_override = st.text_input("Step", value="25k")
+        step_override = st.text_input("Step", value="5k")
 
     st.divider()
 
     # ── Scan parameters
     st.subheader("Parameters")
-    duration = st.slider("Duration (s)", min_value=5, max_value=300, value=60, step=5)
+    duration = st.slider(
+        "Duration (s)",
+        min_value=5,
+        max_value=1800,
+        value=60,
+        step=5,
+        format="%d s",
+        help="Up to 30 minutes. Long scans capture intermittent signals more reliably.",
+    )
     gain = st.select_slider(
         "Gain (dB)",
         options=GAIN_VALUES,
@@ -237,13 +278,16 @@ def make_env():
 
 def render_signal_table(signals: list):
     rows = [
-        "| Freq (MHz) | Mean dBm | Peak dBm | SNR dB | Tier | Stability |",
-        "|:----------:|:--------:|:--------:|:------:|:----:|:---------:|",
+        "| Freq (MHz) | Type | Service | Mean dBm | Peak dBm | SNR dB | Tier | Stability |",
+        "|:----------:|:----:|:-------:|:--------:|:--------:|:------:|:----:|:---------:|",
     ]
     for s in signals:
         emoji = TIER_EMOJI.get(s["tier"], "")
+        sig_type, service = classify_signal(s["freq_mhz"])
         rows.append(
             f"| **{s['freq_mhz']:.3f}** "
+            f"| {sig_type} "
+            f"| {service} "
             f"| {s['mean_dbm']:.1f} "
             f"| {s['peak_dbm']:.1f} "
             f"| {s['snr_db']:.1f} "
@@ -318,8 +362,10 @@ if scan_btn:
     cmd = build_cmd(band_key, freq_low, freq_high, step_override, duration, gain, threshold)
 
     st.subheader("Live output")
+    progress_bar = st.progress(0.0, text="Initialising scan…")
     output_box = st.empty()
     lines: list[str] = []
+    scan_start = time.monotonic()
 
     with st.spinner("Scanning… (dongle must be connected)"):
         try:
@@ -332,11 +378,23 @@ if scan_btn:
                 env=make_env(),
             )
             for raw_line in proc.stdout:
+                elapsed = time.monotonic() - scan_start
+                # rtl_power phase: progress fills to 95%; analysis fills the last 5%
+                scan_frac = min(elapsed / max(int(duration), 1), 0.95)
+                mins, secs = divmod(int(elapsed), 60)
+                time_str = f"{mins}m {secs:02d}s" if mins else f"{secs}s"
+                progress_bar.progress(
+                    scan_frac,
+                    text=f"Scanning…  {time_str} elapsed / {int(duration)} s target",
+                )
                 stripped = raw_line.rstrip()
                 lines.append(stripped)
-                # Show last 30 lines, scrolling
+                # Bump to 98% when analysis starts
+                if stripped.startswith("==> Analysing"):
+                    progress_bar.progress(0.98, text="Analysing…")
                 output_box.code("\n".join(lines[-30:]), language="bash")
             proc.wait()
+            progress_bar.progress(1.0, text="Complete ✅")
         except FileNotFoundError:
             st.error("scan.sh not found. Run this app from inside the sdr-fm-scan repo.")
             st.session_state.scan_running = False
