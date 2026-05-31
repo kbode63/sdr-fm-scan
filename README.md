@@ -219,11 +219,21 @@ streamlit run scripts/gui.py
 | Frequency source | Radio | Switch between **Band preset** and **Custom range** |
 | Band | Dropdown | All 7 presets — Marine VHF pre-selected |
 | Low / High freq | Text | Custom range inputs when in Custom mode |
-| Override step | Text | Optional — leave blank to use the preset default |
-| Duration | Slider | 5–300 s |
+| Step | Text | Defaults to `5k`; leave blank in Band mode to use the preset default |
+| Duration | Slider | **5–1800 s (up to 30 min)** — longer scans catch intermittent signals |
 | Gain | Select-slider | All valid R820T gain steps (0–49.6 dB) |
 | SNR threshold | Slider | 1–20 dB above noise floor |
 | ▶ Start Scan | Button | Disabled while a scan is running |
+
+#### Progress indicator
+
+A progress bar appears below the live output heading as soon as a scan starts:
+
+- Fills **0 → 95%** proportionally over the target duration (updated on every
+  output line from `rtl_power`)
+- Jumps to **98%** when `analyze.py` begins generating charts
+- Reaches **100% ✅** on completion
+- Label shows elapsed time in `Xm XXs elapsed / N s target` format
 
 #### Results panel
 
@@ -233,8 +243,24 @@ automatically from `charts/`):
 - **Metadata strip** — frequency range, duration, noise floor, signal count, time (UTC)
 - **Chart tabs** — Heatmap · Spectrum · Report (full-res PNGs from `analyze.py`)
 - **Tier badges** — 🔴 Strong · 🟠 Medium · 🟢 Weak · 🔵 Marginal counts
-- **Signal table** — freq, mean/peak power, SNR, tier, stability for every detected peak
+- **Signal table** — freq, **type**, **service**, mean/peak power, SNR, tier, stability
 - **Download buttons** — JSON summary and report PNG
+
+#### Signal classification
+
+Every detected peak is automatically classified into a signal type and service
+based on its frequency:
+
+| Type | Emoji | Example services |
+|------|-------|------------------|
+| Voice | 🎙 | FM Broadcast, Aviation (AM), Marine VHF, NOAA Weather Radio |
+| Data | 📡 | DSC Channel 70, ISM / LoRa, Weather satellites, Aeronautical nav |
+| Mixed | 🎙/📡 | 2m Amateur, 70cm Amateur |
+| Unknown | ❓ | Frequencies outside all known allocations |
+
+The classifier matches the **narrowest** frequency range, so overlapping
+allocations resolve correctly (e.g. 156.525 MHz → DSC Channel 70 rather
+than the broader Marine VHF entry).
 
 #### Live output
 
@@ -246,7 +272,7 @@ output without leaving the browser.
 
 - The GUI requires the RTL-SDR dongle to be connected for scanning; it will
   display an error with exit code if the device is not found.
-- Streamlit 1.28+ is required (`pip3 install streamlit` installs the latest).
+- Streamlit 1.50+ is required (`pip3 install streamlit` installs the latest).
 - To run on a remote host and access via a local browser, add
   `--server.address 0.0.0.0` to the launch command.
 
