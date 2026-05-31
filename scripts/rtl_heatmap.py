@@ -3,18 +3,20 @@
 Generate a frequency/time heatmap from rtl_power CSV output.
 Usage: python3 rtl_heatmap.py [input.csv] [output.png]
 """
-import sys
+
 import csv
-from datetime import datetime
+import sys
 from collections import defaultdict
+from datetime import datetime
 
-import numpy as np
 import matplotlib
-matplotlib.use("Agg")
-import matplotlib.pyplot as plt
-import matplotlib.dates as mdates
+import numpy as np
 
-INPUT  = sys.argv[1] if len(sys.argv) > 1 else "/Users/karlbode/output.csv"
+matplotlib.use("Agg")
+import matplotlib.dates as mdates
+import matplotlib.pyplot as plt
+
+INPUT = sys.argv[1] if len(sys.argv) > 1 else "/Users/karlbode/output.csv"
 OUTPUT = sys.argv[2] if len(sys.argv) > 2 else "/Users/karlbode/heatmap.png"
 
 # ── Parse rtl_power CSV ──────────────────────────────────────────────────────
@@ -26,11 +28,10 @@ with open(INPUT, newline="") as f:
         if len(row) < 7:
             continue
         try:
-            ts      = datetime.strptime(row[0].strip() + " " + row[1].strip(),
-                                        "%Y-%m-%d %H:%M:%S")
-            hz_low  = float(row[2])
+            ts = datetime.strptime(row[0].strip() + " " + row[1].strip(), "%Y-%m-%d %H:%M:%S")
+            hz_low = float(row[2])
             hz_step = float(row[4])
-            powers  = [float(x) for x in row[6:] if x.strip()]
+            powers = [float(x) for x in row[6:] if x.strip()]
             for i, p in enumerate(powers):
                 freq = hz_low + i * hz_step
                 rows_by_time[ts][freq] = p
@@ -67,8 +68,12 @@ img = ax.imshow(
     cmap="inferno",
     vmin=vmin,
     vmax=vmax,
-    extent=[mdates.date2num(times[0]), mdates.date2num(times[-1]),
-            freqs_mhz[0], freqs_mhz[-1]],
+    extent=[
+        mdates.date2num(times[0]),
+        mdates.date2num(times[-1]),
+        freqs_mhz[0],
+        freqs_mhz[-1],
+    ],
 )
 
 ax.xaxis_date()
@@ -80,8 +85,10 @@ cbar.set_label("Power (dBm)", fontsize=11)
 
 ax.set_xlabel("Time (UTC)", fontsize=12)
 ax.set_ylabel("Frequency (MHz)", fontsize=12)
-ax.set_title("RTL-SDR Frequency Scan Heatmap — {:.1f}–{:.1f} MHz".format(
-    freqs_mhz[0], freqs_mhz[-1]), fontsize=14)
+ax.set_title(
+    f"RTL-SDR Frequency Scan Heatmap — {freqs_mhz[0]:.1f}–{freqs_mhz[-1]:.1f} MHz",
+    fontsize=14,
+)
 
 plt.tight_layout()
 plt.savefig(OUTPUT, dpi=150)

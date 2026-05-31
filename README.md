@@ -38,10 +38,102 @@ heatmap and spectrum-peak analysis.
 See [`charts/final_report_chart.png`](charts/final_report_chart.png) for the
 full annotated 3-panel report.
 
+## CI / GitHub Actions
+
+Three workflows live in `.github/workflows/`:
+
+| Workflow | Trigger | Runner | Purpose |
+|----------|---------|--------|---------|
+| `generate-report.yml` | Push to `data/*.csv` or manual dispatch | `ubuntu-latest` | Run `analyze.py`, commit charts, upload artifacts |
+| `scan.yml` | Manual dispatch or cron schedule | `self-hosted` + label `rtl-sdr` | Capture RTL-SDR scan, analyse, commit results |
+| `lint.yml` | Push / PR touching `scripts/*.py` | `ubuntu-latest` | `ruff check` + `ruff format --check` |
+
+### Self-hosted runner setup (required for `scan.yml`)
+
+Because scanning requires a physical RTL-SDR dongle, `scan.yml` targets a
+self-hosted runner labelled `rtl-sdr`. Follow these steps once per host machine:
+
+**1. Register the runner**
+
+Go to **Settings → Actions → Runners → New self-hosted runner** in the GitHub
+repository, choose your OS, and follow the on-screen download and configuration
+instructions. When prompted for labels, add `rtl-sdr`:
+
+```bash
+# Example configuration step (token shown by GitHub)
+./config.sh --url https://github.com/kbode63/sdr-fm-scan \
+            --token <RUNNER_TOKEN> \
+            --labels rtl-sdr
+```
+
+**2. Install RTL-SDR tooling**
+
+```bash
+# macOS
+brew install librtlsdr
+
+# Debian / Ubuntu
+sudo apt install rtl-sdr
+```
+
+Verify the dongle is detected:
+
+```bash
+rtl_test -t
+# Expected: "Found 1 device(s)"
+```
+
+**3. Install Python dependencies**
+
+```bash
+pip3 install matplotlib numpy pandas
+```
+
+**4. Install and start the runner service**
+
+```bash
+# macOS (launchd)
+./svc.sh install && ./svc.sh start
+
+# Linux (systemd)
+sudo ./svc.sh install && sudo ./svc.sh start
+```
+
+The runner is now online. Trigger a scan from **Actions → Run Scan → Run
+workflow** and set the frequency range and duration inputs.
+
+**5. Enable periodic scans (optional)**
+
+Uncomment the `schedule:` block in `.github/workflows/scan.yml` and set the
+cron expression to your desired cadence:
+
+```yaml
+schedule:
+  - cron: "0 */6 * * *"   # every 6 hours
+```
+
+### Linting locally
+
+```bash
+pip3 install ruff
+ruff check scripts/
+ruff format --check scripts/
+
+# Auto-fix
+ruff check --fix scripts/ && ruff format scripts/
+```
+
+Config lives in `ruff.toml` at the repo root (`target-version = py39`,
+`line-length = 100`).
+
 ## Project layout
 
 ```
 sdr-fm-scan/
+├── .github/workflows/
+│   ├── generate-report.yml     # Auto-generate charts from CSV data
+│   ├── scan.yml                # RTL-SDR scan on self-hosted runner
+│   └── lint.yml                # ruff lint + format check
 ├── data/
 │   └── output.csv              # Raw rtl_power scan (reference)
 ├── charts/
@@ -49,8 +141,10 @@ sdr-fm-scan/
 │   ├── spectrum_peaks.png      # Annotated spectrum (6 dB threshold, 15 signals)
 │   └── final_report_chart.png  # Full 3-panel report (3 dB threshold, 29 signals)
 ├── scripts/
+│   ├── analyze.py              # Standalone analysis CLI (peak detection + all charts + JSON)
 │   ├── rtl_heatmap.py          # Heatmap generator
 │   └── scan.sh                 # End-to-end scan + heatmap runner
+├── ruff.toml                   # Linter / formatter configuration
 └── README.md
 ```
 
@@ -67,16 +161,33 @@ pip3 install matplotlib numpy pandas
 
 ```bash
 chmod +x scripts/scan.sh
-./scripts/scan.sh 85M 110M 125k 60
+
+# Named band presets
+./scripts/scan.sh --band fm          # FM broadcast  87.5–108 MHz
+./scripts/scan.sh --band marine      # Marine VHF    156–174 MHz
+./scripts/scan.sh --band airband     # Aviation VHF  118–137 MHz
+./scripts/scan.sh --band weather     # NOAA weather  162.4–162.55 MHz
+./scripts/scan.sh --band 2m          # 2m amateur    144–148 MHz
+./scripts/scan.sh --band 70cm        # 70cm amateur  430–440 MHz
+./scripts/scan.sh --band ism433      # ISM/LoRa 433  433–434.79 MHz
+
+# Custom range
+./scripts/scan.sh --freq 156M:174M --step 25k
+
+# Override duration or threshold for any preset
+./scripts/scan.sh --band marine --duration 120 --threshold 6
 ```
 
-Arguments: `freq_low freq_high step duration_seconds`
+Run `./scripts/scan.sh --help` for the full option list.
 
-### Generate heatmap from existing CSV
+### Full analysis from an existing CSV
 
 ```bash
-python3 scripts/rtl_heatmap.py data/output.csv charts/heatmap.png
+python3 scripts/analyze.py data/output.csv --outdir charts/
 ```
+
+Outputs three charts (`_heatmap.png`, `_spectrum.png`, `_report.png`) and a
+`_summary.json` into the specified directory.
 
 ## Detected signals
 

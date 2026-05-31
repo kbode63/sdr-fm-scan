@@ -1,0 +1,85 @@
+name: Generate Report
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "data/**/*.csv"
+  workflow_dispatch:
+    inputs:
+      csv_file:
+        description: "CSV file to analyse (relative to repo root)"
+        required: false
+        default: "data/output.csv"
+      threshold:
+        description: "SNR detection threshold in dB"
+        required: false
+        default: "3.0"
+
+permissions:
+  contents: write   # allow committing charts back to the repo
+
+jobs:
+  report:
+    name: Analyse scan & generate charts
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install Python dependencies
+        run: pip install matplotlib numpy pandas
+
+      # Determine which CSV to analyse:
+      #   - manual dispatch: use the input value
+      #   - push:            use the most recently modified CSV in data/
+      - name: Resolve target CSV
+        id: csv
+        run: |
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            echo "path=${{ github.event.inputs.csv_file }}" >> "$GITHUB_OUTPUT"
+            echo "threshold=${{ github.event.inputs.threshold }}" >> "$GITHUB_OUTPUT"
+          else
+            LATEST=$(git diff --name-only HEAD~1 HEAD -- 'data/*.csv' | head -1)
+            if [[ -z "$LATEST" ]]; then
+              LATEST=$(ls -t data/*.csv 2>/dev/null | head -1)
+            fi
+            echo "path=${LATEST}" >> "$GITHUB_OUTPUT"
+            echo "threshold=3.0"  >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Run analysis
+        run: |
+          python scripts/analyze.py \
+            "${{ steps.csv.outputs.path }}" \
+            --outdir charts/ \
+            --threshold "${{ steps.csv.outputs.threshold }}" \
+            --json-out charts/summary.json
+
+      - name: Upload charts as artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: sdr-report-${{ github.run_number }}
+          path: |
+            charts/*.png
+            charts/summary.json
+          retention-days: 90
+
+      - name: Commit generated charts
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add charts/
+          if git diff --cached --quiet; then
+            echo "No chart changes to commit."
+          else
+            git commit -m "ci: regenerate charts from ${{ steps.csv.outputs.path }} [skip ci]"
+            git push
+          fi
