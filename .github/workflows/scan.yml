@@ -14,18 +14,32 @@ name: Run Scan
 on:
   workflow_dispatch:
     inputs:
+      band:
+        description: "Named band preset (overrides freq_low/freq_high/step when set)"
+        required: false
+        default: ""
+        type: choice
+        options:
+          - ""
+          - fm
+          - airband
+          - weather
+          - marine
+          - 2m
+          - 70cm
+          - ism433
       freq_low:
-        description: "Lower frequency bound (e.g. 85M)"
+        description: "Lower frequency bound — ignored when band is set (e.g. 85M)"
         required: false
         default: "85M"
       freq_high:
-        description: "Upper frequency bound (e.g. 110M)"
+        description: "Upper frequency bound — ignored when band is set (e.g. 110M)"
         required: false
         default: "110M"
       step:
-        description: "Step size (e.g. 125k)"
+        description: "Step size — overrides band default when set (e.g. 125k)"
         required: false
-        default: "125k"
+        default: ""
       duration:
         description: "Scan duration in seconds"
         required: false
@@ -45,7 +59,7 @@ permissions:
 
 jobs:
   scan:
-    name: Capture scan (${{ inputs.freq_low }}–${{ inputs.freq_high }})
+    name: "Capture scan (${{ inputs.band != '' && inputs.band || format('{0}\u2013{1}', inputs.freq_low, inputs.freq_high) }})"
     runs-on: [self-hosted, rtl-sdr]
 
     steps:
@@ -55,36 +69,32 @@ jobs:
       - name: Verify RTL-SDR device
         run: rtl_test -t 2>&1 | head -10
 
-      - name: Run scan
-        run: |
-          TIMESTAMP=$(date -u +"%Y%m%dT%H%M%SZ")
-          CSV="data/scan_${TIMESTAMP}.csv"
-          echo "SCAN_CSV=${CSV}" >> "$GITHUB_ENV"
-          echo "SCAN_TIMESTAMP=${TIMESTAMP}" >> "$GITHUB_ENV"
-          rtl_power \
-            -f "${{ inputs.freq_low }}:${{ inputs.freq_high }}:${{ inputs.step }}" \
-            -g 49.6 \
-            -i 1 \
-            -e "${{ inputs.duration }}" \
-            "${CSV}"
-          echo "Scan complete: ${CSV}"
-
       - name: Install Python dependencies
         run: pip3 install matplotlib numpy pandas
 
-      - name: Analyse scan & generate charts
+      - name: Run scan & analyse
         run: |
-          python3 scripts/analyze.py \
-            "${{ env.SCAN_CSV }}" \
-            --outdir charts/ \
-            --threshold "${{ inputs.threshold }}"
+          ARGS=(--duration "${{ inputs.duration }}" --threshold "${{ inputs.threshold }}")
+          if [[ -n "${{ inputs.band }}" ]]; then
+            ARGS+=(--band "${{ inputs.band }}")
+          else
+            ARGS+=(--freq "${{ inputs.freq_low }}:${{ inputs.freq_high }}")
+          fi
+          [[ -n "${{ inputs.step }}" ]] && ARGS+=(--step "${{ inputs.step }}")
+          bash scripts/scan.sh "${ARGS[@]}"
+          # Capture the CSV written by scan.sh for artifact upload
+          BAND_LABEL="${INPUT_BAND:-custom}"
+          TIMESTAMP=$(date -u +"%Y%m%dT%H%M%SZ")
+          echo "SCAN_LABEL=${BAND_LABEL}_${TIMESTAMP}" >> "$GITHUB_ENV"
+        env:
+          INPUT_BAND: "${{ inputs.band }}"
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: scan-${{ env.SCAN_TIMESTAMP }}
+          name: scan-${{ env.SCAN_LABEL }}
           path: |
-            ${{ env.SCAN_CSV }}
+            data/scan_*.csv
             charts/*.png
             charts/*_summary.json
           retention-days: 90
@@ -93,9 +103,8 @@ jobs:
         run: |
           git config user.name  "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          # Force-add the timestamped CSV (excluded by .gitignore for manual scans)
-          git add -f "${{ env.SCAN_CSV }}"
+          git add -f data/scan_*.csv
           git add charts/
           git diff --cached --quiet && echo "Nothing to commit." && exit 0
-          git commit -m "scan: ${{ inputs.freq_low }}–${{ inputs.freq_high }} @ ${{ env.SCAN_TIMESTAMP }} [skip ci]"
+          git commit -m "scan: ${{ env.SCAN_LABEL }} [skip ci]"
           git push

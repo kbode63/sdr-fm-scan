@@ -161,16 +161,33 @@ pip3 install matplotlib numpy pandas
 
 ```bash
 chmod +x scripts/scan.sh
-./scripts/scan.sh 85M 110M 125k 60
+
+# Named band presets
+./scripts/scan.sh --band fm          # FM broadcast  87.5–108 MHz
+./scripts/scan.sh --band marine      # Marine VHF    156–174 MHz
+./scripts/scan.sh --band airband     # Aviation VHF  118–137 MHz
+./scripts/scan.sh --band weather     # NOAA weather  162.4–162.55 MHz
+./scripts/scan.sh --band 2m          # 2m amateur    144–148 MHz
+./scripts/scan.sh --band 70cm        # 70cm amateur  430–440 MHz
+./scripts/scan.sh --band ism433      # ISM/LoRa 433  433–434.79 MHz
+
+# Custom range
+./scripts/scan.sh --freq 156M:174M --step 25k
+
+# Override duration or threshold for any preset
+./scripts/scan.sh --band marine --duration 120 --threshold 6
 ```
 
-Arguments: `freq_low freq_high step duration_seconds`
+Run `./scripts/scan.sh --help` for the full option list.
 
-### Generate heatmap from existing CSV
+### Full analysis from an existing CSV
 
 ```bash
-python3 scripts/rtl_heatmap.py data/output.csv charts/heatmap.png
+python3 scripts/analyze.py data/output.csv --outdir charts/
 ```
+
+Outputs three charts (`_heatmap.png`, `_spectrum.png`, `_report.png`) and a
+`_summary.json` into the specified directory.
 
 ## Detected signals
 
