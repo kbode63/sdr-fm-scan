@@ -1,0 +1,86 @@
+{
+  "scan": {
+    "source_csv": "/Users/karlbode/sdr-fm-scan/data/scan_custom_20260531T171019Z.csv",
+    "start_utc": "2026-05-31T12:10:21Z",
+    "end_utc": "2026-05-31T12:11:14Z",
+    "duration_s": 53,
+    "time_steps": 54,
+    "freq_bins": 903,
+    "freq_low_mhz": 156.0,
+    "freq_high_mhz": 174.0
+  },
+  "analysis": {
+    "noise_floor_dbm": -9.4,
+    "threshold_db": 3.0,
+    "total_signals": 7,
+    "by_tier": {
+      "MARGINAL": 5,
+      "STRONG": 2
+    }
+  },
+  "signals": [
+    {
+      "freq_mhz": 157.748,
+      "mean_dbm": -6.3,
+      "peak_dbm": 7.7,
+      "snr_db": 3.1,
+      "std_db": 6.24,
+      "tier": "MARGINAL",
+      "stability": "intermittent"
+    },
+    {
+      "freq_mhz": 162.549,
+      "mean_dbm": 13.8,
+      "peak_dbm": 14.1,
+      "snr_db": 23.2,
+      "std_db": 0.21,
+      "tier": "STRONG",
+      "stability": "stable"
+    },
+    {
+      "freq_mhz": 167.993,
+      "mean_dbm": -5.6,
+      "peak_dbm": -5.0,
+      "snr_db": 3.8,
+      "std_db": 0.24,
+      "tier": "MARGINAL",
+      "stability": "stable"
+    },
+    {
+      "freq_mhz": 169.982,
+      "mean_dbm": -5.7,
+      "peak_dbm": -4.3,
+      "snr_db": 3.7,
+      "std_db": 0.52,
+      "tier": "MARGINAL",
+      "stability": "stable"
+    },
+    {
+      "freq_mhz": 172.031,
+      "mean_dbm": 15.0,
+      "peak_dbm": 15.2,
+      "snr_db": 24.3,
+      "std_db": 0.22,
+      "tier": "STRONG",
+      "stability": "stable"
+    },
+    {
+      "freq_mhz": 172.795,
+      "mean_dbm": -6.4,
+      "peak_dbm": -5.7,
+      "snr_db": 3.0,
+      "std_db": 0.29,
+      "tier": "MARGINAL",
+      "stability": "stable"
+    },
+    {
+      "freq_mhz": 173.317,
+      "mean_dbm": -5.7,
+      "peak_dbm": 1.5,
+      "snr_db": 3.7,
+      "std_db": 2.18,
+      "tier": "MARGINAL",
+      "stability": "variable"
+    }
+  ]
+}
