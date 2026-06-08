@@ -460,6 +460,8 @@ sdr-fm-scan/
 
 ## Detected signals
 
+Frequencies listed below can be tuned to in real time using [Gqrx](https://gqrx.dk), an open-source SDR receiver with a waterfall display.
+
 | # | Freq (MHz) | SNR (dB) | Tier | Stability |
 |---|-----------|---------|------|-----------|
 | 1 | 88.906 | 25.4 | Strong | stable |
