@@ -64,7 +64,7 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Verify RTL-SDR device
         run: rtl_test -t 2>&1 | head -10
@@ -90,7 +90,7 @@ jobs:
           INPUT_BAND: "${{ inputs.band }}"
 
       - name: Upload artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: scan-${{ env.SCAN_LABEL }}
           path: |
