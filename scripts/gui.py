@@ -10,6 +10,8 @@ Usage:
 
 import json
 import os
+import plistlib
+import socket
 import subprocess
 import sys
 import time
@@ -144,6 +146,116 @@ def classify_signal(freq_mhz: float) -> tuple[str, str]:
     return best
 
 
+# ── GQRX remote control ───────────────────────────────────────────────────────
+GQRX_HOST = "localhost"
+GQRX_PORT = 7356  # GQRX Tools → Remote Control default port
+GQRX_APP = "/Applications/Gqrx.app"
+
+# Map (service keyword) → (GQRX mode string, passband Hz)
+_GQRX_MODES = [
+    ("FM Broadcast", "WFM", 200_000),
+    ("Aviation", "AM", 10_000),
+    ("NOAA", "FM", 15_000),
+    ("DSC", "FM", 15_000),
+    ("ISM", "FM", 15_000),
+    ("LoRa", "FM", 15_000),
+]
+
+
+def gqrx_mode_for(service: str) -> tuple[str, int]:
+    """Return (GQRX mode string, passband Hz) best matched to a service name."""
+    for keyword, mode, bw in _GQRX_MODES:
+        if keyword.lower() in service.lower():
+            return mode, bw
+    return "FM", 15_000  # NFM default
+
+
+def gqrx_status() -> tuple[bool, str]:
+    """Return (connected, status_text). Non-blocking, 0.4 s timeout."""
+    try:
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+            s.settimeout(0.4)
+            s.connect((GQRX_HOST, GQRX_PORT))
+            s.sendall(b"f\n")  # query current VFO frequency
+            raw = s.recv(64).decode().strip()
+            freq_mhz = int(raw) / 1e6 if raw.isdigit() else 0
+            suffix = f" · tuned to {freq_mhz:.3f} MHz" if freq_mhz else ""
+            return True, f"Connected{suffix}"
+    except Exception:
+        return False, "Not running"
+
+
+def _enable_gqrx_remote_control() -> None:
+    """Pre-enable GQRX Remote Control in its macOS plist so it listens on startup."""
+    plist_path = Path.home() / "Library" / "Preferences" / "dk.gqrx.www.plist"
+    try:
+        if plist_path.exists():
+            with open(plist_path, "rb") as f:
+                prefs = plistlib.load(f)
+        else:
+            prefs = {}
+        prefs["remote_control/enabled"] = True
+        prefs["remote_control/allowed_hosts"] = "::ffff:127.0.0.1"
+        with open(plist_path, "wb") as f:
+            plistlib.dump(prefs, f)
+    except Exception:
+        pass  # best-effort; user can still enable manually
+
+
+def _try_gqrx_connect(freq_hz: int, mode: str, bw: int) -> bool:
+    """Attempt a single TCP tune. Return True on success."""
+    try:
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+            s.settimeout(2.0)
+            s.connect((GQRX_HOST, GQRX_PORT))
+            s.sendall(f"F {freq_hz}\n".encode())
+            s.recv(64)
+            s.sendall(f"M {mode} {bw}\n".encode())
+            s.recv(64)
+        return True
+    except (ConnectionRefusedError, TimeoutError, OSError):
+        return False
+
+
+def tune_gqrx(freq_mhz: float, service: str) -> None:
+    """Tune GQRX via Remote Control TCP, launching the app if needed."""
+    freq_hz = int(freq_mhz * 1e6)
+    mode, bw = gqrx_mode_for(service)
+
+    # Fast path: GQRX already running with Remote Control enabled
+    if _try_gqrx_connect(freq_hz, mode, bw):
+        st.toast(
+            f"📻 Tuned GQRX to **{freq_mhz:.3f} MHz** · mode {mode}",
+            icon="✅",
+        )
+        return
+
+    # GQRX not responding — enable Remote Control in prefs and launch
+    _enable_gqrx_remote_control()
+    try:
+        subprocess.Popen(["open", "-a", GQRX_APP])
+    except Exception as exc:
+        st.error(f"Could not launch GQRX: {exc}")
+        return
+
+    # Retry connection while GQRX starts up (up to ~3 s)
+    for _ in range(6):
+        time.sleep(0.5)
+        if _try_gqrx_connect(freq_hz, mode, bw):
+            st.toast(
+                f"📻 Launched GQRX and tuned to **{freq_mhz:.3f} MHz** · mode {mode}",
+                icon="✅",
+            )
+            return
+
+    st.toast(
+        f"GQRX launched but Remote Control not yet ready. "
+        f"In GQRX: **Tools → Remote Control → Start**, "
+        f"then click 📻 again to tune to {freq_mhz:.3f} MHz.",
+        icon="📡",
+    )
+
+
 # ── Page config ───────────────────────────────────────────────────────────────
 st.set_page_config(
     page_title="RTL-SDR Scanner",
@@ -276,25 +388,46 @@ def make_env():
     return env
 
 
-def render_signal_table(signals: list):
-    rows = [
-        "| Freq (MHz) | Type | Service | Mean dBm | Peak dBm | SNR dB | Tier | Stability |",
-        "|:----------:|:----:|:-------:|:--------:|:--------:|:------:|:----:|:---------:|",
-    ]
-    for s in signals:
-        emoji = TIER_EMOJI.get(s["tier"], "")
+# Column proportions: freq | type | service | mean | peak | snr | tier | stability | gqrx
+_TCOLS = [1.2, 1.3, 2.0, 0.85, 0.85, 0.75, 1.3, 1.2, 0.65]
+_THEADS = [
+    "Freq (MHz)",
+    "Type",
+    "Service",
+    "Mean dBm",
+    "Peak dBm",
+    "SNR dB",
+    "Tier",
+    "Stability",
+    "GQRX",
+]
+
+
+def render_signal_table(signals: list, table_key_prefix: str = "sig") -> None:
+    # Header row
+    hcols = st.columns(_TCOLS)
+    for col, label in zip(hcols, _THEADS):
+        col.markdown(f"**{label}**")
+    st.divider()
+
+    for i, s in enumerate(signals):
         sig_type, service = classify_signal(s["freq_mhz"])
-        rows.append(
-            f"| **{s['freq_mhz']:.3f}** "
-            f"| {sig_type} "
-            f"| {service} "
-            f"| {s['mean_dbm']:.1f} "
-            f"| {s['peak_dbm']:.1f} "
-            f"| {s['snr_db']:.1f} "
-            f"| {emoji} {s['tier']} "
-            f"| {s['stability']} |"
-        )
-    st.markdown("\n".join(rows))
+        emoji = TIER_EMOJI.get(s["tier"], "")
+        row = st.columns(_TCOLS)
+        row[0].markdown(f"`{s['freq_mhz']:.3f}`")
+        row[1].caption(sig_type)
+        row[2].caption(service)
+        row[3].markdown(f"{s['mean_dbm']:.1f}")
+        row[4].markdown(f"{s['peak_dbm']:.1f}")
+        row[5].markdown(f"{s['snr_db']:.1f}")
+        row[6].markdown(f"{emoji} {s['tier']}")
+        row[7].markdown(s["stability"])
+        if row[8].button(
+            "📻",
+            key=f"{table_key_prefix}_{i}_{int(s['freq_mhz'] * 1e6)}",
+            help=f"Tune GQRX to {s['freq_mhz']:.3f} MHz ({service})",
+        ):
+            tune_gqrx(s["freq_mhz"], service)
 
 
 def render_results(json_path: Path, charts: dict):
@@ -322,8 +455,17 @@ def render_results(json_path: Path, charts: dict):
                 st.image(str(path), width="stretch")
         st.divider()
 
-    # ── Tier summary badges
-    st.subheader(f"Detected signals — {len(signals)} total")
+    # ── Tier summary badges + GQRX status
+    sig_col, gqrx_col = st.columns([3, 1])
+    sig_col.subheader(f"Detected signals — {len(signals)} total")
+
+    gqrx_ok, gqrx_msg = gqrx_status()
+    gqrx_col.markdown(
+        f"**GQRX** &nbsp; {'🟢' if gqrx_ok else '🔴'} {gqrx_msg}",
+        help="GQRX Remote Control status (Tools → Remote Control → Start on port 7356). "
+        "Click 📻 on any signal row to tune.",
+    )
+
     tc = analysis.get("by_tier", {})
     b1, b2, b3, b4 = st.columns(4)
     b1.metric("🔴 Strong", tc.get("STRONG", 0), help="SNR > 20 dB")
@@ -331,8 +473,9 @@ def render_results(json_path: Path, charts: dict):
     b3.metric("🟢 Weak", tc.get("WEAK", 0), help="SNR 6–14 dB")
     b4.metric("🔵 Marginal", tc.get("MARGINAL", 0), help="SNR 3–6 dB")
 
-    # ── Signal table
-    render_signal_table(signals)
+    # ── Signal table (with per-row GQRX tune buttons)
+    stem = json_path.stem.replace("_summary", "")
+    render_signal_table(signals, table_key_prefix=stem)
 
     st.divider()
 
