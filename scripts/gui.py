@@ -10,6 +10,7 @@ Usage:
 
 import json
 import os
+import plistlib
 import socket
 import subprocess
 import sys
@@ -184,10 +185,25 @@ def gqrx_status() -> tuple[bool, str]:
         return False, "Not running"
 
 
-def tune_gqrx(freq_mhz: float, service: str) -> None:
-    """Tune GQRX via Remote Control TCP, or launch the app if not running."""
-    freq_hz = int(freq_mhz * 1e6)
-    mode, bw = gqrx_mode_for(service)
+def _enable_gqrx_remote_control() -> None:
+    """Pre-enable GQRX Remote Control in its macOS plist so it listens on startup."""
+    plist_path = Path.home() / "Library" / "Preferences" / "dk.gqrx.www.plist"
+    try:
+        if plist_path.exists():
+            with open(plist_path, "rb") as f:
+                prefs = plistlib.load(f)
+        else:
+            prefs = {}
+        prefs["remote_control/enabled"] = True
+        prefs["remote_control/allowed_hosts"] = "::ffff:127.0.0.1"
+        with open(plist_path, "wb") as f:
+            plistlib.dump(prefs, f)
+    except Exception:
+        pass  # best-effort; user can still enable manually
+
+
+def _try_gqrx_connect(freq_hz: int, mode: str, bw: int) -> bool:
+    """Attempt a single TCP tune. Return True on success."""
     try:
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
             s.settimeout(2.0)
@@ -196,21 +212,48 @@ def tune_gqrx(freq_mhz: float, service: str) -> None:
             s.recv(64)
             s.sendall(f"M {mode} {bw}\n".encode())
             s.recv(64)
+        return True
+    except (ConnectionRefusedError, TimeoutError, OSError):
+        return False
+
+
+def tune_gqrx(freq_mhz: float, service: str) -> None:
+    """Tune GQRX via Remote Control TCP, launching the app if needed."""
+    freq_hz = int(freq_mhz * 1e6)
+    mode, bw = gqrx_mode_for(service)
+
+    # Fast path: GQRX already running with Remote Control enabled
+    if _try_gqrx_connect(freq_hz, mode, bw):
         st.toast(
             f"📻 Tuned GQRX to **{freq_mhz:.3f} MHz** · mode {mode}",
             icon="✅",
         )
-    except (ConnectionRefusedError, TimeoutError, OSError):
-        # GQRX not running — try to launch it
-        try:
-            subprocess.Popen(["open", "-a", GQRX_APP])
+        return
+
+    # GQRX not responding — enable Remote Control in prefs and launch
+    _enable_gqrx_remote_control()
+    try:
+        subprocess.Popen(["open", "-a", GQRX_APP])
+    except Exception as exc:
+        st.error(f"Could not launch GQRX: {exc}")
+        return
+
+    # Retry connection while GQRX starts up (up to ~3 s)
+    for _ in range(6):
+        time.sleep(0.5)
+        if _try_gqrx_connect(freq_hz, mode, bw):
             st.toast(
-                f"GQRX launched.  In GQRX: **Tools → Remote Control → Start**,"
-                f" then click 📻 again to tune to {freq_mhz:.3f} MHz.",
-                icon="📡",
+                f"📻 Launched GQRX and tuned to **{freq_mhz:.3f} MHz** · mode {mode}",
+                icon="✅",
             )
-        except Exception as exc:
-            st.error(f"Could not launch GQRX: {exc}")
+            return
+
+    st.toast(
+        f"GQRX launched but Remote Control not yet ready. "
+        f"In GQRX: **Tools → Remote Control → Start**, "
+        f"then click 📻 again to tune to {freq_mhz:.3f} MHz.",
+        icon="📡",
+    )
 
 
 # ── Page config ───────────────────────────────────────────────────────────────
