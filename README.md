@@ -335,11 +335,45 @@ While scanning, the last 30 lines of `scan.sh` stdout update in real time inside
 a scrolling code block, so you can monitor `rtl_power` progress and `analyze.py`
 output without leaving the browser.
 
+#### GQRX integration
+
+Every signal row has a **📻 button** that tunes GQRX to that frequency and
+automatically selects the correct demodulation mode:
+
+| Service | GQRX mode | Passband |
+|---------|-----------|----------|
+| FM Broadcast | WFM | 200 kHz |
+| Aviation | AM | 10 kHz |
+| NOAA Weather / Marine / DSC / ISM | FM (NFM) | 15 kHz |
+| All others | FM (NFM) | 15 kHz |
+
+**Behaviour when 📻 is clicked:**
+
+- **GQRX running with Remote Control on** — tunes instantly; `F <hz>` and
+  `M <mode> <bw>` are sent over TCP; a success toast confirms the new
+  frequency and mode.
+- **GQRX running, Remote Control off** — connection is refused; the app is
+  launched and a toast explains how to enable Remote Control.
+- **GQRX not running** — `Gqrx.app` is launched automatically; a toast
+  prompts you to enable Remote Control and click 📻 again.
+
+A **GQRX status badge** (🟢 Connected · tuned to X MHz / 🔴 Not running)
+appears beside the "Detected signals" heading and refreshes on every page
+interaction.
+
+**Enabling GQRX Remote Control:**
+1. Open GQRX and configure your device.
+2. Go to **Tools → Remote Control → Start**.
+3. Leave the default port **7356**.
+4. Click any 📻 button in the scanner GUI to tune.
+
 #### Notes
 
 - The GUI requires the RTL-SDR dongle to be connected for scanning; it will
   display an error with exit code if the device is not found.
 - Streamlit 1.50+ is required (`pip3 install streamlit` installs the latest).
+- GQRX Remote Control uses TCP port 7356 on localhost. To change the port,
+  update `GQRX_PORT` in `scripts/gui.py`.
 - To run on a remote host and access via a local browser, add
   `--server.address 0.0.0.0` to the launch command.
 
