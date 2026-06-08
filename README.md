@@ -279,6 +279,23 @@ streamlit run scripts/gui.py
 # Opens automatically at http://localhost:8501
 ```
 
+#### Port configuration
+
+The GUI defaults to port **8501**. To use a different port (e.g. if 8501 is
+already in use), pass the port as an argument to `launch-gui.sh` or use the
+`--server.port` flag with Streamlit directly:
+
+```bash
+# Via the launch script
+./launch-gui.sh 8502
+
+# Via main.py
+python3 scripts/main.py gui --port 8502
+
+# Via Streamlit directly
+streamlit run scripts/gui.py --server.port 8502
+```
+
 #### Sidebar controls
 
 | Control | Type | Description |
