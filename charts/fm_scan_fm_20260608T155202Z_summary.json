@@ -1,0 +1,213 @@
+{
+  "scan": {
+    "source_csv": "/Users/karlbode/sdr-fm-scan/data/scan_fm_20260608T155202Z.csv",
+    "start_utc": "2026-06-08T10:52:04Z",
+    "end_utc": "2026-06-08T10:53:03Z",
+    "duration_s": 59,
+    "time_steps": 60,
+    "freq_bins": 264,
+    "freq_low_mhz": 87.5,
+    "freq_high_mhz": 108.0
+  },
+  "analysis": {
+    "noise_floor_dbm": 2.1,
+    "threshold_db": 3.0,
+    "total_signals": 21,
+    "by_tier": {
+      "MEDIUM": 7,
+      "WEAK": 6,
+      "MARGINAL": 8
+    }
+  },
+  "signals": [
+    {
+      "freq_mhz": 88.781,
+      "mean_dbm": 20.4,
+      "peak_dbm": 22.4,
+      "snr_db": 18.2,
+      "std_db": 0.61,
+      "tier": "MEDIUM",
+      "stability": "stable"
+    },
+    {
+      "freq_mhz": 89.662,
+      "mean_dbm": 8.6,
+      "peak_dbm": 10.5,
+      "snr_db": 6.5,
+      "std_db": 0.67,
+      "tier": "WEAK",
+      "stability": "stable"
+    },
+    {
+      "freq_mhz": 91.264,
+      "mean_dbm": 5.3,
+      "peak_dbm": 6.5,
+      "snr_db": 3.1,
+      "std_db": 0.6,
+      "tier": "MARGINAL",
+      "stability": "stable"
+    },
+    {
+      "freq_mhz": 93.105,
+      "mean_dbm": 6.2,
+      "peak_dbm": 7.1,
+      "snr_db": 4.1,
+      "std_db": 0.38,
+      "tier": "MARGINAL",
+      "stability": "stable"
+    },
+    {
+      "freq_mhz": 93.666,
+      "mean_dbm": 16.8,
+      "peak_dbm": 18.5,
+      "snr_db": 14.7,
+      "std_db": 0.72,
+      "tier": "MEDIUM",
+      "stability": "stable"
+    },
+    {
+      "freq_mhz": 94.307,
+      "mean_dbm": 5.8,
+      "peak_dbm": 7.0,
+      "snr_db": 3.7,
+      "std_db": 0.42,
+      "tier": "MARGINAL",
+      "stability": "stable"
+    },
+    {
+      "freq_mhz": 95.268,
+      "mean_dbm": 5.7,
+      "peak_dbm": 6.8,
+      "snr_db": 3.5,
+      "std_db": 0.53,
+      "tier": "MARGINAL",
+      "stability": "stable"
+    },
+    {
+      "freq_mhz": 95.908,
+      "mean_dbm": 16.8,
+      "peak_dbm": 17.8,
+      "snr_db": 14.7,
+      "std_db": 0.39,
+      "tier": "MEDIUM",
+      "stability": "stable"
+    },
+    {
+      "freq_mhz": 96.309,
+      "mean_dbm": 6.3,
+      "peak_dbm": 7.3,
+      "snr_db": 4.2,
+      "std_db": 0.36,
+      "tier": "MARGINAL",
+      "stability": "stable"
+    },
+    {
+      "freq_mhz": 97.91,
+      "mean_dbm": 10.0,
+      "peak_dbm": 11.2,
+      "snr_db": 7.9,
+      "std_db": 0.48,
+      "tier": "WEAK",
+      "stability": "stable"
+    },
+    {
+      "freq_mhz": 98.711,
+      "mean_dbm": 6.9,
+      "peak_dbm": 8.0,
+      "snr_db": 4.8,
+      "std_db": 0.35,
+      "tier": "MARGINAL",
+      "stability": "stable"
+    },
+    {
+      "freq_mhz": 99.031,
+      "mean_dbm": 16.4,
+      "peak_dbm": 17.4,
+      "snr_db": 14.3,
+      "std_db": 0.5,
+      "tier": "MEDIUM",
+      "stability": "stable"
+    },
+    {
+      "freq_mhz": 99.912,
+      "mean_dbm": 17.7,
+      "peak_dbm": 18.5,
+      "snr_db": 15.6,
+      "std_db": 0.47,
+      "tier": "MEDIUM",
+      "stability": "stable"
+    },
+    {
+      "freq_mhz": 100.713,
+      "mean_dbm": 10.4,
+      "peak_dbm": 11.1,
+      "snr_db": 8.3,
+      "std_db": 0.35,
+      "tier": "WEAK",
+      "stability": "stable"
+    },
+    {
+      "freq_mhz": 101.914,
+      "mean_dbm": 8.8,
+      "peak_dbm": 9.8,
+      "snr_db": 6.7,
+      "std_db": 0.42,
+      "tier": "WEAK",
+      "stability": "stable"
+    },
+    {
+      "freq_mhz": 102.715,
+      "mean_dbm": 11.7,
+      "peak_dbm": 13.3,
+      "snr_db": 9.5,
+      "std_db": 0.81,
+      "tier": "WEAK",
+      "stability": "stable"
+    },
+    {
+      "freq_mhz": 103.916,
+      "mean_dbm": 7.6,
+      "peak_dbm": 8.8,
+      "snr_db": 5.4,
+      "std_db": 0.68,
+      "tier": "MARGINAL",
+      "stability": "stable"
+    },
+    {
+      "freq_mhz": 104.717,
+      "mean_dbm": 6.2,
+      "peak_dbm": 7.0,
+      "snr_db": 4.1,
+      "std_db": 0.37,
+      "tier": "MARGINAL",
+      "stability": "stable"
+    },
+    {
+      "freq_mhz": 105.117,
+      "mean_dbm": 18.3,
+      "peak_dbm": 19.4,
+      "snr_db": 16.2,
+      "std_db": 0.61,
+      "tier": "MEDIUM",
+      "stability": "stable"
+    },
+    {
+      "freq_mhz": 106.318,
+      "mean_dbm": 17.5,
+      "peak_dbm": 18.5,
+      "snr_db": 15.4,
+      "std_db": 0.47,
+      "tier": "MEDIUM",
+      "stability": "stable"
+    },
+    {
+      "freq_mhz": 107.279,
+      "mean_dbm": 9.8,
+      "peak_dbm": 10.7,
+      "snr_db": 7.6,
+      "std_db": 0.5,
+      "tier": "WEAK",
+      "stability": "stable"
+    }
+  ]
+}
