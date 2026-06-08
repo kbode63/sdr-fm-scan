@@ -90,6 +90,14 @@ TIMESTAMP=$(date -u +"%Y%m%dT%H%M%SZ")
 DATA_DIR="$(cd "$(dirname "$0")/../data" && pwd)"
 CHARTS_DIR="$(cd "$(dirname "$0")/../charts" && pwd)"
 SCRIPTS_DIR="$(cd "$(dirname "$0")" && pwd)"
+REPO_DIR="$(cd "$(dirname "$0")/.." && pwd)"
+
+# Prefer the project venv's Python so matplotlib etc. are available
+if [[ -x "${REPO_DIR}/.venv/bin/python3" ]]; then
+  PYTHON="${REPO_DIR}/.venv/bin/python3"
+else
+  PYTHON="python3"
+fi
 
 CSV="${DATA_DIR}/scan_${BAND_LABEL}_${TIMESTAMP}.csv"
 
@@ -101,7 +109,7 @@ rtl_power -f "${FREQ_LOW}:${FREQ_HIGH}:${STEP}" -g "${GAIN}" -i 1 -e "${DURATION
 
 echo ""
 echo "==> Analysing → ${CHARTS_DIR}/"
-python3 "${SCRIPTS_DIR}/analyze.py" \
+"${PYTHON}" "${SCRIPTS_DIR}/analyze.py" \
   "${CSV}" \
   --outdir "${CHARTS_DIR}" \
   --threshold "${THRESHOLD}" \
