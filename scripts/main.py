@@ -54,9 +54,12 @@ def cmd_scan(args: argparse.Namespace) -> int:
     if args.step:
         cmd += ["--step", args.step]
     cmd += [
-        "--duration", str(args.duration),
-        "--gain",     str(args.gain),
-        "--threshold", str(args.threshold),
+        "--duration",
+        str(args.duration),
+        "--gain",
+        str(args.gain),
+        "--threshold",
+        str(args.threshold),
     ]
     return run(cmd, cwd=str(REPO))
 
@@ -66,8 +69,10 @@ def cmd_analyze(args: argparse.Namespace) -> int:
         sys.executable,
         str(SCRIPTS / "analyze.py"),
         args.csv,
-        "--outdir",    args.outdir,
-        "--threshold", str(args.threshold),
+        "--outdir",
+        args.outdir,
+        "--threshold",
+        str(args.threshold),
     ]
     if args.prefix:
         cmd += ["--prefix", args.prefix]
@@ -84,8 +89,10 @@ def cmd_gui(args: argparse.Namespace) -> int:
         streamlit_bin,
         "run",
         str(SCRIPTS / "gui.py"),
-        "--server.port", str(args.port),
-        "--browser.gatherUsageStats", "false",
+        "--server.port",
+        str(args.port),
+        "--browser.gatherUsageStats",
+        "false",
     ]
     print(f"Starting RTL-SDR Scanner GUI → http://localhost:{args.port}")
     return run(cmd, cwd=str(REPO))
@@ -112,27 +119,39 @@ def build_parser() -> argparse.ArgumentParser:
     p_scan = sub.add_parser("scan", help="Capture + analyse spectrum (dongle required)")
     freq_grp = p_scan.add_mutually_exclusive_group()
     freq_grp.add_argument(
-        "--band", "-b",
+        "--band",
+        "-b",
         choices=["fm", "airband", "weather", "marine", "2m", "70cm", "ism433"],
         help="Named band preset",
     )
     freq_grp.add_argument(
-        "--freq", "-f",
+        "--freq",
+        "-f",
         metavar="LOW:HIGH",
         help="Custom frequency range, e.g. 156M:174M",
     )
-    p_scan.add_argument("--step",      "-s", default="",    help="Frequency step (e.g. 25k)")
-    p_scan.add_argument("--duration",  "-d", default=60,    type=int,   help="Scan duration in seconds (default: 60)")
-    p_scan.add_argument("--gain",      "-g", default=49.6,  type=float, help="Tuner gain in dB (default: 49.6)")
-    p_scan.add_argument("--threshold", "-t", default=3.0,   type=float, help="SNR threshold in dB (default: 3.0)")
+    p_scan.add_argument("--step", "-s", default="", help="Frequency step (e.g. 25k)")
+    p_scan.add_argument(
+        "--duration", "-d", default=60, type=int, help="Scan duration in seconds (default: 60)"
+    )
+    p_scan.add_argument(
+        "--gain", "-g", default=49.6, type=float, help="Tuner gain in dB (default: 49.6)"
+    )
+    p_scan.add_argument(
+        "--threshold", "-t", default=3.0, type=float, help="SNR threshold in dB (default: 3.0)"
+    )
 
     # ── analyze ───────────────────────────────────────────────────────────────
     p_ana = sub.add_parser("analyze", help="Analyse an existing CSV (no dongle needed)")
     p_ana.add_argument("csv", help="Path to rtl_power output CSV")
-    p_ana.add_argument("--outdir",    default="charts", help="Output directory (default: charts/)")
-    p_ana.add_argument("--threshold", default=3.0, type=float, help="SNR threshold in dB (default: 3.0)")
-    p_ana.add_argument("--prefix",    default="",  help="Filename prefix for output charts")
-    p_ana.add_argument("--json-out",  default=None, dest="json_out", help="Override JSON output path")
+    p_ana.add_argument("--outdir", default="charts", help="Output directory (default: charts/)")
+    p_ana.add_argument(
+        "--threshold", default=3.0, type=float, help="SNR threshold in dB (default: 3.0)"
+    )
+    p_ana.add_argument("--prefix", default="", help="Filename prefix for output charts")
+    p_ana.add_argument(
+        "--json-out", default=None, dest="json_out", help="Override JSON output path"
+    )
 
     # ── gui ───────────────────────────────────────────────────────────────────
     p_gui = sub.add_parser("gui", help="Launch the Streamlit web interface")
@@ -140,9 +159,13 @@ def build_parser() -> argparse.ArgumentParser:
 
     # ── heatmap ───────────────────────────────────────────────────────────────
     p_hm = sub.add_parser("heatmap", help="Generate a standalone heatmap PNG")
-    p_hm.add_argument("csv",    help="Path to rtl_power output CSV")
-    p_hm.add_argument("output", nargs="?", default="charts/heatmap.png",
-                      help="Output PNG path (default: charts/heatmap.png)")
+    p_hm.add_argument("csv", help="Path to rtl_power output CSV")
+    p_hm.add_argument(
+        "output",
+        nargs="?",
+        default="charts/heatmap.png",
+        help="Output PNG path (default: charts/heatmap.png)",
+    )
 
     return parser
 
@@ -155,9 +178,9 @@ def main() -> None:
     args = parser.parse_args()
 
     handlers = {
-        "scan":    cmd_scan,
+        "scan": cmd_scan,
         "analyze": cmd_analyze,
-        "gui":     cmd_gui,
+        "gui": cmd_gui,
         "heatmap": cmd_heatmap,
     }
     sys.exit(handlers[args.command](args))
