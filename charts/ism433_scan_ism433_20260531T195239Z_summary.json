@@ -1,0 +1,31 @@
+{
+  "scan": {
+    "source_csv": "/Users/karlbode/sdr-fm-scan/data/scan_ism433_20260531T195239Z.csv",
+    "start_utc": "2026-05-31T14:52:40Z",
+    "end_utc": "2026-05-31T14:53:39Z",
+    "duration_s": 59,
+    "time_steps": 60,
+    "freq_bins": 513,
+    "freq_low_mhz": 433.05,
+    "freq_high_mhz": 434.79
+  },
+  "analysis": {
+    "noise_floor_dbm": -32.9,
+    "threshold_db": 3.0,
+    "total_signals": 1,
+    "by_tier": {
+      "MARGINAL": 1
+    }
+  },
+  "signals": [
+    {
+      "freq_mhz": 433.149,
+      "mean_dbm": -29.6,
+      "peak_dbm": -28.8,
+      "snr_db": 3.2,
+      "std_db": 0.78,
+      "tier": "MARGINAL",
+      "stability": "stable"
+    }
+  ]
+}

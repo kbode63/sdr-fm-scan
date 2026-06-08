@@ -46,11 +46,17 @@ full annotated 3-panel report.
 ```bash
 # macOS
 brew install librtlsdr
-pip3 install matplotlib numpy pandas streamlit
 
 # Debian / Ubuntu
 sudo apt install rtl-sdr
-pip3 install matplotlib numpy pandas streamlit
+```
+
+Install Python dependencies into a virtual environment:
+
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
 ```
 
 Verify your dongle is recognised:
@@ -59,6 +65,67 @@ Verify your dongle is recognised:
 rtl_test -t
 # Expected: "Found 1 device(s)"
 ```
+
+---
+
+### `main.py` — unified CLI entry point
+
+`scripts/main.py` is the single entry point for all scanner operations.
+It wraps `scan.sh`, `analyze.py`, `gui.py`, and `rtl_heatmap.py` behind a
+consistent subcommand interface.
+
+#### Synopsis
+
+```
+python3 scripts/main.py <COMMAND> [OPTIONS]
+
+Commands:
+  scan      Capture + analyse spectrum (RTL-SDR dongle required)
+  analyze   (Re-)analyse an existing CSV without the dongle
+  gui       Launch the Streamlit web interface
+  heatmap   Generate a standalone heatmap PNG from a CSV
+```
+
+#### Quick examples
+
+```bash
+# Launch the web GUI
+python3 scripts/main.py gui
+python3 scripts/main.py gui --port 8502
+
+# Scan a named band (dongle required)
+python3 scripts/main.py scan --band fm
+python3 scripts/main.py scan --band marine --duration 120 --threshold 6
+python3 scripts/main.py scan --freq 156M:174M --step 25k
+
+# Re-analyse an existing CSV
+python3 scripts/main.py analyze data/output.csv
+python3 scripts/main.py analyze data/output.csv --threshold 10 --outdir /tmp/charts
+
+# Generate a standalone heatmap
+python3 scripts/main.py heatmap data/output.csv charts/heatmap.png
+```
+
+#### Options — `scan`
+
+| Flag | Short | Default | Description |
+|------|-------|---------|-------------|
+| `--band` | `-b` | — | Named band preset (see table below). Mutually exclusive with `--freq`. |
+| `--freq` | `-f` | — | Custom range as `LOW:HIGH`, e.g. `156M:174M`. |
+| `--step` | `-s` | preset default | Frequency bin size, e.g. `25k`. |
+| `--duration` | `-d` | `60` | Scan duration in seconds. |
+| `--gain` | `-g` | `49.6` | Tuner gain in dB (0–49.6). |
+| `--threshold` | `-t` | `3.0` | Minimum SNR in dB above noise floor. |
+
+#### Options — `analyze`
+
+| Flag | Default | Description |
+|------|---------|-------------|
+| `csv` | *(required)* | Path to an `rtl_power` output CSV. |
+| `--outdir` | `charts/` | Directory to write charts and JSON into. |
+| `--threshold` | `3.0` | Minimum SNR in dB above noise floor. |
+| `--prefix` | *(none)* | String prepended to all output filenames. |
+| `--json-out` | `<outdir>/<stem>_summary.json` | Override JSON output path. |
 
 ---
 
@@ -381,10 +448,12 @@ sdr-fm-scan/
 │   ├── spectrum_peaks.png      # Annotated spectrum (6 dB threshold, 15 signals)
 │   └── final_report_chart.png  # Full 3-panel report (3 dB threshold, 29 signals)
 ├── scripts/
+│   ├── main.py                 # Unified CLI entry point (scan / analyze / gui / heatmap)
 │   ├── analyze.py              # Standalone analysis CLI (peak detection + all charts + JSON)
 │   ├── gui.py                  # Streamlit web interface
 │   ├── rtl_heatmap.py          # Heatmap generator
 │   └── scan.sh                 # End-to-end scan + band-preset runner
+├── requirements.txt            # Pinned Python dependencies
 ├── ruff.toml                   # Linter / formatter configuration
 └── README.md
 ```
